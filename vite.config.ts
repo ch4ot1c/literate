@@ -5,7 +5,7 @@ export default defineConfig({
   plugins: [
     VitePWA({
       registerType: 'autoUpdate',
-      strategies: 'injectManifest', // Tells Vite you are using your own sw.ts
+      strategies: 'injectManifest', // Indicates using src/sw.ts
       srcDir: 'src',
       filename: 'sw.ts',
       devOptions: {
@@ -16,9 +16,9 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,ico,png,svg}']
       },
       manifest: {
-        name: 'Sovereign Code Notebook',
-        short_name: 'CodeNotebook',
-        description: 'Multi-instance standalone interactive code workbook',
+        name: 'Learn Coding Fast, with Browser AI',
+        short_name: 'LearnCodingFast',
+        description: 'Learn Coding Fast, with Browser AI',
         theme_color: '#1e1e2e',
         background_color: '#1e1e2e',
         display: 'standalone',

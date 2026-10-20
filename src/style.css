@@ -85,8 +85,8 @@ body {
 
 /* Primary Execution Button */
 .btn-run {
-  width: 120px;  /* Hard-locked width prevents horizontal shifting */
-  height: 30px;  /* Hard-locked height prevents vertical jitter */
+  width: 120px; /* Fixed width prevents horizontal shifting */
+  height: 30px; /* Fixed height prevents vertical jitter */
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -161,7 +161,7 @@ body {
   font-size: 14px;
 }
 
-/* Grid Layout Requests */
+/* Grid Layout */
 .button-matrix {
   display: flex;
   flex-direction: column;
@@ -239,7 +239,7 @@ button.btn-try {
   font-weight: bold;
 }
 
-/* The New Status Bar */
+/* Status Bar */
 .output-header {
   background: #181825; /* Slightly lighter header */
   padding: 8px 14px;
@@ -259,7 +259,7 @@ button.btn-try {
   flex-direction: column;
 }
 
-/* The terminal */
+/* The Terminal */
 .output-stdout {
   display: none;
   padding: 16px;
@@ -286,7 +286,7 @@ button.btn-try {
   background: #11111b;
 }
 
-/* Update your CSS to truly collapse empty terminals */
+/* Collapse empty terminals */
 .output-viewport:has(.output-stdout[style*="display: none"]) {
   min-height: auto; /* Collapse if the stdout is hidden */
 }
@@ -491,14 +491,14 @@ button.btn-try {
 
 .ai-status-pill {
   display: inline-flex; align-items: center; gap: 10px;
-  padding: 8px 18px; /* Increased padding */
+  padding: 8px 18px;
   border-radius: 999px;
   font-size: 0.95rem; /* Larger font */
   font-weight: 600; /* Bolder text */
   letter-spacing: 0.5px; /* Better readability */
   background: #181825;
   border: 2px solid #313244; /* Thicker border */
-  color: #bac2de; /* Brighter default text */
+  color: #bac2de;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4); /* Floats above the UI */
   transition: all 0.3s ease;
 }
@@ -674,7 +674,7 @@ button.btn-try {
 
 /* The Shortcuts Button */
 .btn-shortcuts {
-  background: #f9e2af; /* The yellow from your screenshot */
+  background: #f9e2af;
   color: #11111b;
   border: none;
   border-radius: 6px;
@@ -692,7 +692,7 @@ button.btn-try {
 .nav-status {
   display: flex;
   align-items: center;
-  margin-left: auto; /* <--- Forces the pill to the far right, even if it wraps to a new line */
+  margin-left: auto; /* Forces the pill to the far right, even if it wraps to a new line */
   margin-top: auto;
   margin-bottom: 2px; /* Aligns its bottom with the rest of the row */
 }
@@ -927,7 +927,7 @@ select.config-input option:checked {
 
 .floating-ask-input {
   width: 100%;
-  box-sizing: border-box; /* FIXES THE RIGHT MARGIN OVERFLOW */
+  box-sizing: border-box; /* Fix right margin overflow */
   min-height: 80px;
   max-height: 200px;
   background: #11111b;

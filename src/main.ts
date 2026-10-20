@@ -1,5 +1,5 @@
-import { EditorState, Compartment, StateEffect, StateField } from '@codemirror/state';
-import { EditorView, keymap, Decoration, DecorationSet, Extension } from '@codemirror/view';
+import { EditorState, Compartment, StateEffect, StateField, Extension } from '@codemirror/state';
+import { EditorView, keymap, Decoration, DecorationSet } from '@codemirror/view';
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
 import { lineNumbers, highlightActiveLineGutter, highlightActiveLine } from '@codemirror/view';
 
@@ -14,7 +14,7 @@ import { atomone } from '@uiw/codemirror-theme-atomone';
 import { vscodeDark } from '@uiw/codemirror-theme-vscode';
 
 // LiteRT WebGPU Engine
-import { Engine, EngineSettings } from '@litert-lm/core';
+import { Engine /*, EngineSettings*/ } from '@litert-lm/core';
 
 import { registerSW } from 'virtual:pwa-register';
 
@@ -326,6 +326,45 @@ window.addEventListener('message', (e) => {
 });
 
 // ==========================================
+
+async function loadWasmInternals() {
+  return new Promise((resolve, reject) => {
+    if ((window as any).LiteRTWasm) {
+      resolve(true);
+      return;
+    }
+
+    console.log("Priming AI Engine with local WASM internals...");
+
+    // IMPORTANT: This 'Module' object is what the litertlm_wasm_internal.js
+    // looks for to find its .wasm file.
+    (window as any).Module = {
+      locateFile: (path: string) => {
+        // If the library asks for the .wasm file, redirect it to our public folder
+        if (path.endsWith('.wasm')) {
+          console.log(`Redirecting WASM request from ${path} to /litertlm_wasm_internal.wasm`);
+          return '/litertlm_wasm_internal.wasm';
+        }
+        return path;
+      },
+    };
+
+    const script = document.createElement('script');
+    script.src = '/litertlm_wasm_internal.js';
+    script.async = true;
+    script.onload = () => {
+      console.log("✅ Local WASM loader and engine redirected successfully.");
+      resolve(true);
+    };
+    script.onerror = () => {
+      console.error("❌ Failed to load local WASM loader.");
+      reject(new Error("Local WASM load failed"));
+    };
+    document.head.appendChild(script);
+  });
+}
+
+// ==========================================
 // LiteRT AI Engine & Global UI State
 // ==========================================
 let engine: Engine | null = null;
@@ -371,23 +410,30 @@ async function initializeAIEngine() {
 
     setAIToolingState('booting', 'Initializing Local AI Engine (~1min)...');
 
-    const engineSettings = {
-      model: 'https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/gemma-4-E2B-it-web.litertlm',
-      mainExecutorSettings: { maxNumTokens: 8192 },
+    // Strategy: Use CDN if online, otherwise use local /public file
+    const remoteModel = 'https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/gemma-4-E2B-it-web.litertlm';
+    const localModel = '/gemma-4-E2B-it-web.litertlm';
 
-      // Hook directly into the engine's internal event bus
+    const modelPath = navigator.onLine ? remoteModel : localModel;
+
+    const engineSettings = {
+      model: modelPath,
+      mainExecutorSettings: { maxNumTokens: 8192 },
       onProgress: (progressInfo: { text: string; progress: number }) => {
-        // progressInfo.text contains the actual C++ / WebAssembly phase strings
-        // e.g., "Fetching model shards [2/14]", "Compiling ComputePipeline", etc.
         setAIToolingState('booting', progressInfo.text);
         console.log(`[WebGPU] LLM AI Boot Progress: ${Math.round(progressInfo.progress * 100)}%`);
       }
     };
 
-    // The engine handles its own lifecycle and reports back via the callback
-    engine = await Engine.create(engineSettings);
+    try {
+      engine = await Engine.create(engineSettings);
+    } catch (e) {
+      console.warn("Remote model failed, trying local fallback...", e);
+      // Force local path if the remote one failed (e.g. DNS error or 404)
+      engineSettings.model = localModel;
+      engine = await Engine.create(engineSettings);
+    }
 
-    // Once the promise resolves, we know the hardware lock is complete
     isModelReady = true;
     setAIToolingState('ready', 'AI Engine Online');
 
@@ -419,30 +465,69 @@ function setPythonToolingState(state: 'booting' | 'ready' | 'error', message?: s
 
 async function initializePythonEngine() {
   setPythonToolingState('booting', 'Booting Python WASM...');
+
   try {
-    // 1. Inject script tag
+    // 1. Define Paths
+    // Local path is priority for offline support
+    const LOCAL_JS = "/cdn.jsdelivr.net/npm/pyodide@314.0.7/pyodide.js";
+    const LOCAL_URL = "/cdn.jsdelivr.net/npm/pyodide@314.0.7";
+
+    // CDN fallback for when you are online and local files are missing
+    const CDN_JS = "https://cdn.jsdelivr.net/pyodide/v0.27.8/full/pyodide.js";
+    const CDN_URL = "https://cdn.jsdelivr.net/pyodide/v0.27.8/full/";
+
+    // 2. Inject script tag
     if (!(window as any).loadPyodide) {
-      await new Promise((resolve, reject) => {
-        const script = document.createElement('script');
-        script.src = "https://cdn.jsdelivr.net/pyodide/v0.25.0/full/pyodide.js";
-        script.onload = resolve;
-        script.onerror = reject;
-        document.head.appendChild(script);
-      });
+      try {
+        // Try Local first
+        await new Promise((resolve, reject) => {
+          const script = document.createElement('script');
+          script.src = LOCAL_JS;
+          script.onload = resolve;
+          script.onerror = () => reject(new Error("Local JS not found"));
+          document.head.appendChild(script);
+        });
+        console.log("Pyodide: Loaded from local storage.");
+      } catch (err) {
+        console.warn("Pyodide: Local JS not found, attempting CDN fallback...");
+        try {
+          await new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = CDN_JS;
+            script.onload = resolve;
+            script.onerror = reject;
+            document.head.appendChild(script);
+          });
+        } catch (cdnErr) {
+          throw new Error("Pyodide failed to load from both Local and CDN.");
+        }
+      }
     }
 
-    // 2. Pre-warm the environment with EXPLICIT CDN PATH
+    // 3. Initialize the Pyodide instance
     if (!(window as any).pyodide) {
-      (window as any).pyodide = await (window as any).loadPyodide({
-        // This stops it from trying to load the .wasm file from localhost!
-        indexURL: "https://cdn.jsdelivr.net/pyodide/v0.25.0/full/"
-      });
+      // Decide which indexURL to use based on where the script was loaded from
+      const isLocal = (window as any).loadPyodide.src?.includes('localhost') ||
+                      (window as any).loadPyodide.src?.includes('127.0.0.1') ||
+                      !navigator.onLine;
+
+      const finalIndexURL = isLocal ? LOCAL_URL : CDN_URL;
+
+      try {
+        (window as any).pyodide = await (window as any).loadPyodide({
+          indexURL: finalIndexURL
+        });
+      } catch (e) {
+        console.warn("Pyodide: indexURL failed, forcing local fallback...");
+        (window as any).pyodide = await (window as any).loadPyodide({
+          indexURL: LOCAL_URL
+        });
+      }
     }
 
     isPythonReady = true;
     setPythonToolingState('ready', 'Python Online');
 
-    // Hide pill after 3 seconds
     setTimeout(() => {
       const pill = document.getElementById('global-python-status');
       if (pill) pill.style.opacity = '0';
@@ -453,6 +538,7 @@ async function initializePythonEngine() {
     setPythonToolingState('error', 'Python Boot Failed');
   }
 }
+
 
 // ==========================================
 // Code Execution & LLM Analysis
@@ -1276,7 +1362,7 @@ async function executeFloatingLLM() {
       }
     }
 
-    // Construct as an array to mathematically prevent IDE auto-indentation
+    // Construct as an array to formally prevent IDE auto-indentation
     // from breaking the Markdown backticks, and put the prompt at the end.
     finalPrompt = [
       `Please address the directive at the bottom using the following ${activeLang.toUpperCase()} code as context.`,
@@ -1421,17 +1507,24 @@ function downloadBlob(filename: string, content: string, type: string) {
 // ==========================================
 // Boot
 // ==========================================
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   initializeWorkbook();
   setupGlobalControls();
   setupNavigationAndSidebar();
   initializeReadingView();
 
-  // Stagger the initialization to prevent main-thread deadlocks.
-  // 1. Boot Python WASM first (takes ~1 second)
-  initializePythonEngine().then(() => {
-    // 2. Once Python is online, boot the heavy WebGPU AI model.
-    // (This guarantees the UI doesn't freeze while Python is trying to load)
-    initializeAIEngine();
-  });
+  try {
+    // STAGE 1: Boot Python
+    await initializePythonEngine();
+
+    // STAGE 2: Prime the AI WASM Internals LOCALLY
+    // This prevents the library from ever calling the CDN
+    await loadWasmInternals();
+
+    // STAGE 3: Boot the AI Engine
+    await initializeAIEngine();
+
+  } catch (err) {
+    console.error("Boot sequence failed:", err);
+  }
 });

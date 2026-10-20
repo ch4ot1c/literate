@@ -1,4 +1,7 @@
-dev-dist/
 node_modules/
-public/models/
-.DS_Store
+dist/
+
+dev-dist/
+
+public/pyodide-0.27.8.tar.bz2
+#public/readthedocs-addons.js

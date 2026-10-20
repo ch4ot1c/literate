@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI Code Sandbox</title>
+    <link rel="stylesheet" href="/src/style.css" />
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: var(--bg-main, #11111b);
+            padding: 20px;
+        }
+
+        #floating-ai-widget {
+            position: relative !important;
+            top: auto !important;
+            right: auto !important;
+            width: 90% !important;
+            max-width: 1000px !important;
+            display: flex !important;
+            justify-content: center !important;
+            z-index: 1 !important;
+        }
+
+        .floating-chat-container {
+            width: 100% !important;
+            opacity: 1 !important;
+            overflow: visible !important;
+            background: var(--bg-surface, #1e1e2e) !important;
+            border-radius: 12px;
+            border: 1px solid var(--border, #313244);
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 20px;
+            padding: 20px;
+        }
+
+        .floating-toggle-btn, .floating-header {
+            display: none !important;
+        }
+
+        .floating-input-wrapper {
+            position: relative !important;
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 15px !important;
+            padding: 0 !important;
+            background: transparent !important;
+            width: 100% !important;
+        }
+
+        #llm-ask-anything {
+            width: 100% !important;
+            min-height: 180px !important;
+            padding-bottom: 20px !important;
+            font-family: 'Fira Code', monospace !important;
+            background: #11111b !important;
+            color: #cdd6f4 !important;
+            border: 1px solid #45475a !important;
+            box-sizing: border-box !important;
+        }
+
+        .btn-inline-send {
+            position: relative !important;
+            bottom: auto !important;
+            right: auto !important;
+            align-self: flex-end !important;
+            margin-top: 10px;
+            padding: 10px 24px !important;
+        }
+
+        #floating-llm-output {
+            width: 100% !important;
+            margin: 10px 0 0 0 !important;
+            min-height: 300px !important;
+            max-height: 600px !important;
+            background: #11111b !important;
+            display: block !important;
+            box-sizing: border-box !important;
+        }
+
+        .header-status-bar {
+            position: fixed;
+            top: 0;
+            width: 100%;
+            display: flex;
+            justify-content: flex-end;
+            padding: 10px 20px;
+            gap: 15px;
+            z-index: 100;
+            box-sizing: border-box;
+        }
+    </style>
+</head>
+<body>
+
+    <header class="header-status-bar">
+        <!--
+        <div id="global-python-status" class="ai-status-pill booting">
+            <span class="status-dot"></span>
+            <span id="global-python-text">Booting Python WASM...</span>
+        </div>
+        -->
+        <div id="global-ai-status" class="ai-status-pill booting">
+            <span class="status-dot"></span>
+            <span id="global-ai-text">Compiling WebGPU Model...</span>
+        </div>
+    </header>
+
+    <div id="ai-status-panel" class="ai-status-panel hidden">
+        <div class="ai-status-header">
+            <span class="ai-status-icon">⚡</span>
+            <span id="ai-status-text">Initializing AI Engine...</span>
+        </div>
+        <div class="ai-progress-container">
+            <div id="ai-progress-bar" class="ai-progress-bar" style="width: 0%"></div>
+        </div>
+        <div id="ai-progress-detail" class="ai-progress-detail">0% (0 / 0 MB)</div>
+    </div>
+
+    <div id="floating-ai-widget" class="expanded">
+        <button id="btn-floating-toggle" class="floating-toggle-btn"></button>
+
+        <div class="floating-chat-container">
+            <div class="floating-header">
+                 <button id="btn-floating-close" class="btn-floating-close">&times;</button>
+            </div>
+
+            <div class="floating-input-wrapper">
+                <textarea id="llm-ask-anything"
+                          class="floating-ask-input"
+                          placeholder="Enter code or ask a question..."></textarea>
+
+                <button id="btn-ask-anything-send" class="btn-inline-send">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="22" y1="2" x2="11" y2="13"></line>
+                        <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                    </svg>
+                    <span style="margin-left: 8px;">Execute (Ask AI)</span>
+                </button>
+            </div>
+
+            <div id="floating-llm-output" class="floating-output-box"><span style="color: #565f89;"></span></div>
+        </div>
+    </div>
+
+    <div style="display: none;">
+        <textarea id="llm-system-prompt">Respond accurately and thoroughly.</textarea>
+        <input type="checkbox" id="toggle-editor-context">
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
